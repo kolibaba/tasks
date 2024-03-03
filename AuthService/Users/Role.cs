@@ -1,4 +1,4 @@
-﻿internal class Role
+﻿public class Role
 {
     public Role(string name)
     {

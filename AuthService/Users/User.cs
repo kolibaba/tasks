@@ -1,6 +1,6 @@
-﻿internal class Person
+﻿public class User
 {
-    public Person(string email, string password, Role role)
+    public User(string email, string password, Role role)
     {
         Email = email;
         Password = password;
