@@ -58,7 +58,7 @@
         // получаем токен из sessionStorage
         const token = sessionStorage.getItem(tokenKey);
         // отправляем запрос к "/data
-        const response = await fetch("/data", {
+        const response = await fetch("http://mysite.ru:5230/tasks/create", {
             method: "GET",
             headers: {
                 "Accept": "application/json",

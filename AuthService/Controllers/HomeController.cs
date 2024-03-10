@@ -1,14 +1,19 @@
-﻿using System.Security.Claims;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using AuthService.Users;
+using Common;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
-using tasksManager.Users;
+using Microsoft.IdentityModel.Tokens;
 
-namespace tasksManager.Controllers;
+namespace AuthService.Controllers;
+
+public record class Person(string Email, string Password);
 
 public class HomeController : Controller
 {
     [HttpGet("login")]
-    public async Task Index()
+    public async Task Index(string? returnUrl)
     {
         HttpContext.Response.ContentType = "text/html; charset=utf-8";
         var loginForm = @"<!DOCTYPE html>
@@ -36,26 +41,35 @@ public class HomeController : Controller
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login(string? returnUrl)
+    public IActionResult Login(string? returnUrl, [FromForm] Person loginData)
     {
-        var form = HttpContext.Request.Form;
-        if (!form.ContainsKey("email") || !form.ContainsKey("password"))
-            return BadRequest("Email и/или пароль не установлены");
+        // находим пользователя 
+        var user = UsersRepository.Instance.GetAll()
+            .FirstOrDefault(p => p.Email == loginData.Email && p.Password == loginData.Password);
+        // если пользователь не найден, отправляем статусный код 401
+        if (user is null) return Unauthorized();
 
-        string email = form["email"];
-        string password = form["password"];
-
-        var person = UsersRepository.Instance.GetAll().FirstOrDefault(p => p.Email == email && p.Password == password);
-        if (person is null) return Unauthorized();
         var claims = new List<Claim>
         {
-            new(ClaimsIdentity.DefaultNameClaimType, person.Email),
-            new(ClaimsIdentity.DefaultRoleClaimType, person.Role.Name)
+            new(ClaimTypes.Name, user.Email),
+            new(ClaimTypes.Role, user.Role.Name)
         };
-        var claimsIdentity = new ClaimsIdentity(claims, "Cookies");
-        var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
-        await HttpContext.SignInAsync(claimsPrincipal);
-        return Redirect(returnUrl ?? "/");
+        // создаем JWT-токен
+        var jwt = new JwtSecurityToken(
+            AuthOptions.ISSUER,
+            AuthOptions.AUDIENCE,
+            claims,
+            expires: DateTime.UtcNow.Add(TimeSpan.FromMinutes(2)),
+            signingCredentials: new SigningCredentials(AuthOptions.GetSymmetricSecurityKey(),
+                SecurityAlgorithms.HmacSha256));
+        var encodedJwt = new JwtSecurityTokenHandler().WriteToken(jwt);
+
+        HttpContext.Response.Cookies.Append(".AspNetCore.Application.Id", encodedJwt,
+            new CookieOptions
+            {
+                MaxAge = TimeSpan.FromHours(60)
+            });
+        return Redirect(returnUrl ?? "/info");
     }
 
     [HttpGet("register")]
@@ -114,6 +128,7 @@ public class HomeController : Controller
         var claimsIdentity = new ClaimsIdentity(claims, "Cookies");
         var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
         await HttpContext.SignInAsync(claimsPrincipal);
+
         return Redirect(returnUrl ?? "/");
     }
 }

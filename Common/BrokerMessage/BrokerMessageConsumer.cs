@@ -1,6 +1,8 @@
 ﻿using System.Text.Json;
 using Confluent.Kafka;
 
+namespace Common.BrokerMessage;
+
 public class BrokerMessageConsumer
 {
     private static readonly ConsumerConfig config = new()
@@ -10,11 +12,11 @@ public class BrokerMessageConsumer
         AutoOffsetReset = AutoOffsetReset.Earliest
     };
 
-    public static void Consume(string topic, Action<string> handle)
+    public static void Consume<T>(string topic, string @event, Action<T> handle)
     {
         try
         {
-            using var consumerBuilder = new ConsumerBuilder<Ignore, string>(config).Build();
+            using var consumerBuilder = new ConsumerBuilder<string, string>(config).Build();
             consumerBuilder.Subscribe(topic);
             var cancelToken = new CancellationTokenSource();
 
@@ -23,7 +25,11 @@ public class BrokerMessageConsumer
                 while (true)
                 {
                     var consumer = consumerBuilder.Consume(cancelToken.Token);
-                    handle(consumer.Message.Value);
+                    if (consumer.Message.Key == @event)
+                    {
+                        var eventObj = JsonSerializer.Deserialize<T>(consumer.Message.Value);
+                        if (eventObj != null) handle(eventObj);
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -33,7 +39,7 @@ public class BrokerMessageConsumer
         }
         catch (Exception ex)
         {
-           // Console.WriteLine(ex.Message);
+            // Console.WriteLine(ex.Message);
         }
     }
 }
