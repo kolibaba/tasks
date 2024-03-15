@@ -1,5 +1,8 @@
 ﻿using Common.BrokerMessage;
-using Common.Models;
+using Common.Models.Events;
+using Common.Models.Events.Accouns.Streaming;
+using Common.Models.Events.Tasks;
+using Common.Models.Events.Tasks.Streaming;
 
 namespace tasksManager.Tasks;
 
@@ -34,14 +37,18 @@ public class TasksService
 
     private static void ConsumeEvents()
     {
-        //listen cud event from Auth
-        BrokerMessageConsumer.Consume<UsersStream.UserCreated>(UsersStream.TopicName, UsersStream.UserCreated.EventName,
+        //listen streaming event from Accounting
+        BrokerMessageConsumer.Consume<AccountStreamingCreatedV1>(
+            AccountStreamingConstants.TopicName,
+            AccountStreamingConstants.EventNames.AccountCreated,
+            "accounts/account_streaming_created",
+            1,
             eventDto =>
             {
                 _users.Add(new TaskUser
                 {
-                    Id = eventDto.UserId,
-                    Name = eventDto.Email
+                    Id = eventDto.Data.UserId,
+                    Name = eventDto.Data.Email
                 });
             });
     }
@@ -56,23 +63,31 @@ public class TasksService
             Id = Guid.NewGuid(),
             Text = text,
             UserAssignee = userAssignee,
-            IsCompleted = false
+            IsCompleted = false,
+            CreatedAt = DateTime.Now
         };
         _tasks.Add(taskItem);
 
-        await BrokerMessageProducer.Produce(TasksStream.TopicName, TasksStream.TaskCreated.EventName,
-            new TasksStream.TaskCreated
-            {
-                TaskId = taskItem.Id,
-                TaskText = taskItem.Text
-            });
+        //Streaming-Event создания таски
+        await BrokerMessageProducer.Produce(
+            TasksStreamConstants.TopicName,
+            "tasks/streaming_task_created",
+            new TaskStreamingCreatedV1(
+                new TaskStreamCreatedDataV1
+                {
+                    TaskId = taskItem.Id,
+                    TaskText = taskItem.Text,
+                    CreatedAt = taskItem.CreatedAt
+                }));
 
-        await BrokerMessageProducer.Produce(TasksEvents.TopicName, TasksEvents.TaskAssigned.EventName,
-            new TasksEvents.TaskAssigned
-            {
-                TaskId = taskItem.Id,
-                AssigneeUserId = userAssignee.Id
-            });
+        //BE создания таски
+        await BrokerMessageProducer.Produce(TasksEventsConstants.TopicName, "tasks/task_created",
+            new TaskCreatedV1(
+                new TaskCreatedDataV1
+                {
+                    TaskId = taskItem.Id,
+                    AssigneeUserId = userAssignee.Id
+                }));
 
         return taskItem;
     }
@@ -91,12 +106,13 @@ public class TasksService
         var taskItem = _tasks.Find(t => t.Id == taskId);
         if (taskItem == null) throw new ArgumentException($"Task with id={taskId} is not found");
 
-        await BrokerMessageProducer.Produce(TasksEvents.TopicName, TasksEvents.TaskAssigned.EventName,
-            new TasksEvents.TaskCompleted
-            {
-                TaskId = taskItem.Id,
-                ByUserId = byUserId
-            });
+        var data = new TaskCompletedDataV1
+        {
+            TaskId = taskItem.Id,
+            ByUserId = byUserId
+        };
+        await BrokerMessageProducer.Produce(TasksEventsConstants.TopicName, "tasks/task_completed",
+            new TaskCompletedV1(data));
 
         taskItem.IsCompleted = true;
     }
@@ -110,10 +126,11 @@ public class TasksService
             list.Add((taskItem.Id, user.Id));
         }
 
-        await BrokerMessageProducer.Produce(TasksEvents.TopicName, TasksEvents.TasksShuffled.EventName,
-            new TasksEvents.TasksShuffled
-            {
-                List = list
-            });
+        var data = new TasksShuffledDataV1
+        {
+            List = list
+        };
+        await BrokerMessageProducer.Produce(TasksEventsConstants.TopicName, "tasks/tasks_shuffled",
+            new TasksShuffledV1(data));
     }
 }

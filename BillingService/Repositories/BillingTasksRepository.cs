@@ -2,9 +2,9 @@
 
 namespace tasksManager.Repositories;
 
-public class BillingTaskRepository
+public class BillingTasksRepository
 {
-    public static readonly BillingTaskRepository Instance = new();
+    public static readonly BillingTasksRepository Instance = new();
 
     private readonly List<BillingTask> list = new();
 

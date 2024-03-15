@@ -1,6 +1,10 @@
 ﻿using System.Net;
 using System.Text.Json;
+using Common.Models.Events;
 using Confluent.Kafka;
+using EventSchemaRegistry;
+
+namespace Common.BrokerMessage;
 
 public class BrokerMessageProducer
 {
@@ -10,14 +14,19 @@ public class BrokerMessageProducer
         ClientId = Dns.GetHostName()
     };
 
-    public static async Task Produce<T>(string topic, string @event, T value)
+    public static async Task Produce<TEvent>(string topic, string schemaPath, TEvent eventItem) where TEvent : IEventBase
     {
         using var producer = new ProducerBuilder<string, string>(config).Build();
 
-        var result = await producer.ProduceAsync(topic, new Message<string, string>
-        {
-            Key = @event,
-            Value = JsonSerializer.Serialize(value)
-        });
+        //проверяем схему прямо producer-e. Вся инфа (кроме пути к схеме) есть в ДТО-шке события.
+        SchemaRegistry.ValidateEvent(eventItem, schemaPath, eventItem.Version);
+
+        var result = await producer.ProduceAsync(
+            topic,
+            new Message<string, string>
+            {
+                Key = eventItem.Name,
+                Value = JsonSerializer.Serialize(eventItem)
+            });
     }
 }

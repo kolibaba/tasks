@@ -1,11 +1,11 @@
 ﻿using Common.Models;
 
-namespace tasksManager.Models;
+namespace analyticsService.Models;
 
-public class Transaction
+public class AnalyticsTransaction
 {
     public TransactionType TransactionType { get; set; }
     public decimal Value { get; set; }
     public string Text { get; set; }
-    public Guid BillingCycleId { get; set; }
+    public Guid UserId { get; set; }
 }

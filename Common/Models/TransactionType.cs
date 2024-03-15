@@ -1,4 +1,4 @@
-﻿namespace tasksManager.Models;
+﻿namespace Common.Models;
 
 public enum TransactionType
 {

@@ -1,0 +1,54 @@
+{
+  "definitions": {
+    "TaskStreamCreatedDataV1": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "TaskId": {
+          "type": "string"
+        },
+        "TaskText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "TaskId",
+        "TaskText"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "Id": {
+      "type": "string"
+    },
+    "Version": {
+      "type": "integer"
+    },
+    "Time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "Name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "Data": {
+      "$ref": "#/definitions/TaskStreamCreatedDataV1"
+    }
+  },
+  "required": [
+    "Id",
+    "Version",
+    "Time",
+    "Name",
+    "Data"
+  ]
+}

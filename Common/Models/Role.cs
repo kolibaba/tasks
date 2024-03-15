@@ -1,4 +1,6 @@
-﻿public class Role
+﻿namespace Common.Models;
+
+public class Role
 {
     public Role(string name)
     {

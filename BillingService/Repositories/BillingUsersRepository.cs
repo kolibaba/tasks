@@ -12,4 +12,14 @@ public class BillingUsersRepository
     {
         list.Add(billingUser);
     }
+
+    public BillingUser GetUser(Guid assigneeUserId)
+    {
+        return list.First(x => x.UserId == assigneeUserId);
+    }
+
+    public void SetBalance(Guid userId, decimal balance)
+    {
+        GetUser(userId).Balance = balance;
+    }
 }

@@ -1,4 +1,6 @@
-﻿namespace tasksManager.Models;
+﻿using Common.Models;
+
+namespace tasksManager.Models;
 
 public class BillingUser
 {

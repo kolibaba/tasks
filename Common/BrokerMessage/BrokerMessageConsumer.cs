@@ -1,5 +1,7 @@
 ﻿using System.Text.Json;
+using Common.Models.Events;
 using Confluent.Kafka;
+using EventSchemaRegistry;
 
 namespace Common.BrokerMessage;
 
@@ -12,7 +14,18 @@ public class BrokerMessageConsumer
         AutoOffsetReset = AutoOffsetReset.Earliest
     };
 
-    public static void Consume<T>(string topic, string @event, Action<T> handle)
+    public static void Consume<TEvent>(string topic, string eventName, string schemaPath, int version,
+        Action<TEvent> handle) where TEvent : IEventBase
+    {
+        ConsumeAsync<TEvent>(topic, eventName, schemaPath, version, ev =>
+        {
+            handle(ev);
+            return Task.CompletedTask;
+        });
+    }
+    
+    public static void ConsumeAsync<TEvent>(string topic, string eventName, string schemaPath, int version,
+        Func<TEvent, Task> handle) where TEvent : IEventBase
     {
         try
         {
@@ -25,9 +38,14 @@ public class BrokerMessageConsumer
                 while (true)
                 {
                     var consumer = consumerBuilder.Consume(cancelToken.Token);
-                    if (consumer.Message.Key == @event)
+                    if (consumer.Message.Key == eventName)
                     {
-                        var eventObj = JsonSerializer.Deserialize<T>(consumer.Message.Value);
+                        var messageValue = consumer.Message.Value;
+                        var eventObj = JsonSerializer.Deserialize<TEvent>(messageValue);
+                        if (eventObj!.Version != version)
+                            continue;
+                        //то, что пришло в событии проверяем по схеме
+                        SchemaRegistry.ValidateEvent(eventObj, schemaPath, version);
                         if (eventObj != null) handle(eventObj);
                     }
                 }

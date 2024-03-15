@@ -1,4 +1,5 @@
-﻿using tasksManager.Models;
+﻿using Common.Models;
+using tasksManager.Models;
 
 namespace tasksManager.Repositories;
 
@@ -8,19 +9,25 @@ public class TransactionsRepository
 
     private readonly Dictionary<Guid, List<Transaction>> dictionary = new();
 
-    public void Add(Guid userId, TransactionType transactionType, decimal value, string text)
+    public void Add(Guid userId, Transaction transaction)
     {
-        GetListFor(userId).Add(new Transaction
-        {
-            TransactionType = transactionType,
-            Value = value,
-            Text = text
-        });
+        GetListFor(userId).Add(transaction);  
     }
 
-    public List<Transaction> GetAll(Guid userId)
+    public Dictionary<Guid, List<Transaction>> GetAllForCycle(Guid billingCycleId)
     {
-        return GetListFor(userId);
+        Dictionary<Guid, List<Transaction>> resultDict = new();
+        foreach (var kvp in dictionary)
+        {
+            var userId = kvp.Key;
+            var transactions = kvp.Value;
+            var list = transactions.Where(t => t.BillingCycleId == billingCycleId).ToList();
+            if (list.Count > 0)
+            {
+                resultDict[userId] = list;
+            }
+        }
+        return resultDict;
     }
 
     private List<Transaction> GetListFor(Guid userId)
